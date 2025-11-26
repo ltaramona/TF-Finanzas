@@ -1,0 +1,18 @@
+.title { font-size: 20px; font-weight: 600; }
+.spacer { flex: 1 1 auto; }
+
+.wizard-wrapper { padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+
+.section-card { padding: 16px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; margin-bottom: 12px; }
+
+.actions { display:flex; gap:10px; justify-content:flex-end; margin-top:12px; }
+.progress-card .steps { display:flex; gap:8px; flex-wrap:wrap; padding:8px; }
+
+.warning { color: #b71c1c; margin-top:10px; }
+
+.plan-table { max-height: 400px; overflow:auto; margin-top:12px; }
+.plan-table table { width:100%; border-collapse: collapse; }
+.plan-table th, .plan-table td { padding:6px 8px; border-bottom: 1px solid #eee; text-align:right; }
+.plan-table th { background:#fafafa; font-weight:600; text-align:right; }
+.table-actions { display:flex; gap:8px; margin-top:8px; }
