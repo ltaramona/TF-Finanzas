@@ -124,7 +124,8 @@ export class CalculoFinancieroService {
     const desembolsoTotal = params.cuotaInicial + costosIniciales;
     const { van, tirMensual, tirAnual, tcea } = this.calcularIndicadores(
       plan,
-      desembolsoTotal
+      desembolsoTotal,
+      capitalFinanciado
     );
 
     // 7. RESUMEN
@@ -335,36 +336,39 @@ export class CalculoFinancieroService {
   /**
    * Calcula VAN, TIR mensual, TIR anual y TCEA
    */
-  private calcularIndicadores(plan: FilaPlanPagos[], desembolsoInicial: number) {
-    // Construir flujos de caja desde perspectiva del cliente
-    const flujos: number[] = [-desembolsoInicial];
-    
+  private calcularIndicadores(plan: FilaPlanPagos[], desembolsoInicial: number, capitalFinanciado: number) {
+    // Net cash at t0: lo que efectivamente ingresa el cliente (prestamo recibido menos desembolso inicial)
+    const flujo0 = capitalFinanciado - desembolsoInicial;
+
+    // Construir flujos desde la perspectiva del cliente: ingreso inicial positivo, luego pagos negativos
+    const flujos: number[] = [this.redondear(flujo0)];
     plan.forEach(fila => {
-      flujos.push(-fila.cuotaTotal);
+      flujos.push(this.redondear(-fila.cuotaTotal));
     });
 
     // Calcular TIR mensual
     const tirMensual = this.calcularTIR(flujos);
     const tirAnual = tirMensual !== null ? (Math.pow(1 + tirMensual, 12) - 1) : 0;
-    
-    // TCEA es la TIR anualizada
     const tcea = tirAnual;
 
-    // VAN: valor presente de pagos descontados a la TEM del crédito
-    // (no tiene mucho sentido en este contexto, pero lo incluimos)
-    const tem = plan.length > 0 ? plan[0].interes / plan[0].saldoInicial : 0;
-    let van = -desembolsoInicial;
-    plan.forEach((fila, idx) => {
-      van += fila.cuotaTotal / Math.pow(1 + tem, idx + 1);
+    // Para VAN usamos TEM estimado por la periodicidad del plan.
+    // Intentamos obtener la TEM promedio: si no hay intereses (raro), usamos 0.
+    const tem = plan.length > 0 && plan[0].saldoInicial > 0 ? (plan[0].interes / plan[0].saldoInicial) : 0;
+
+    // VAN: valor presente de pagos (notar signos: flujos[0] positivo, pagos negativos)
+    let van = 0;
+    flujos.forEach((f, idx) => {
+      van += f / Math.pow(1 + tem, idx);
     });
 
     return {
       van: this.redondear(van),
       tirMensual: tirMensual || 0,
-      tirAnual: this.redondear(tirAnual * 100), // En porcentaje
-      tcea: this.redondear(tcea * 100) // En porcentaje
+      tirAnual: this.redondear(tirAnual * 100), // porcentaje
+      tcea: this.redondear(tcea * 100) // porcentaje
     };
   }
+
 
   /**
    * Calcula TIR usando método de bisección
