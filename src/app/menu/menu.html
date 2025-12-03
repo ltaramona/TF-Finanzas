@@ -1,5 +1,5 @@
 <mat-toolbar color="primary">
-  <span class="title">MiVivienda</span>
+  <span class="title">MiVivienda - Calculadora de Crédito Hipotecario</span>
   <span class="spacer"></span>
   <button mat-button color="warn" (click)="logout()">Salir</button>
 </mat-toolbar>
@@ -18,7 +18,13 @@
     </div>
   </mat-card>
 
-  <!-- STEP 1: CLIENTE -->
+  <!-- MENSAJES DE VALIDACIÓN -->
+  <mat-card *ngIf="mensajeValidacion" class="warning-card">
+    <mat-icon color="warn">warning</mat-icon>
+    <span>{{ mensajeValidacion }}</span>
+  </mat-card>
+
+  <!-- ==================== STEP 1: CLIENTE ==================== -->
   <mat-card *ngIf="currentStep === 0" class="section-card">
     <h2>1. Datos del Cliente</h2>
     <div class="grid-2">
@@ -33,52 +39,79 @@
       </mat-form-field>
 
       <mat-form-field>
-        <mat-label>Ingreso mensual (en moneda seleccionada)</mat-label>
-        <input matInput type="number" [(ngModel)]="cliente.ingreso">
+        <mat-label>Ingreso mensual (S/)</mat-label>
+        <input matInput type="number" [(ngModel)]="cliente.ingreso" min="1500">
+        <mat-hint>Mínimo: S/ 1,500</mat-hint>
       </mat-form-field>
 
       <mat-form-field>
         <mat-label>Edad</mat-label>
-        <input matInput type="number" [(ngModel)]="cliente.edad">
+        <input matInput type="number" [(ngModel)]="cliente.edad" min="18" max="70">
       </mat-form-field>
 
       <mat-form-field>
         <mat-label>Estado civil</mat-label>
         <mat-select [(ngModel)]="cliente.estadoCivil">
-          <mat-option value="Soltero">Soltero</mat-option>
-          <mat-option value="Casado">Casado</mat-option>
+          <mat-option value="Soltero">Soltero/a</mat-option>
+          <mat-option value="Casado">Casado/a</mat-option>
           <mat-option value="Conviviente">Conviviente</mat-option>
+          <mat-option value="Divorciado">Divorciado/a</mat-option>
+          <mat-option value="Viudo">Viudo/a</mat-option>
         </mat-select>
       </mat-form-field>
 
       <mat-form-field>
         <mat-label>Dependientes</mat-label>
-        <input matInput type="number" [(ngModel)]="cliente.dependientes">
+        <input matInput type="number" [(ngModel)]="cliente.dependientes" min="0">
       </mat-form-field>
+    </div>
+
+    <div class="checkbox-section">
+      <mat-checkbox [(ngModel)]="cliente.esGrupoVulnerable">
+        Pertenezco a un grupo vulnerable (madre soltera, persona con discapacidad)
+        <span class="bono-tag">+S/ 3,600 Bono Integrador</span>
+      </mat-checkbox>
     </div>
 
     <div class="actions">
-      <button mat-button (click)="nextStep()">Siguiente</button>
+      <button mat-raised-button color="primary" (click)="nextStep()">Siguiente</button>
     </div>
   </mat-card>
 
-  <!-- STEP 2: INMUEBLE -->
+  <!-- ==================== STEP 2: INMUEBLE ==================== -->
   <mat-card *ngIf="currentStep === 1" class="section-card">
     <h2>2. Datos del Inmueble</h2>
+    
+    <div class="info-box">
+      <mat-icon>info</mat-icon>
+      <span>Rango de precios MiVivienda: S/ 68,800 - S/ 488,800</span>
+    </div>
+
     <div class="grid-2">
       <mat-form-field>
-        <mat-label>Precio del inmueble</mat-label>
-        <input matInput type="number" [(ngModel)]="inmueble.precio">
+        <mat-label>Precio de la vivienda (S/)</mat-label>
+        <input matInput type="number" [(ngModel)]="inmueble.precio" 
+               (ngModelChange)="calcularBonos(); onCuotaInicialPorcentajeChange()">
       </mat-form-field>
 
       <mat-form-field>
-        <mat-label>Cuota inicial</mat-label>
-        <input matInput type="number" [(ngModel)]="inmueble.cuotaInicial">
+        <mat-label>Cuota inicial (%)</mat-label>
+        <input matInput type="number" [(ngModel)]="inmueble.cuotaInicialPorcentaje" 
+               min="7.5" max="100" step="0.5"
+               (ngModelChange)="onCuotaInicialPorcentajeChange()">
+        <mat-hint>Mínimo: 7.5%</mat-hint>
       </mat-form-field>
 
       <mat-form-field>
-        <mat-label>Valor asegurable (reconstrucción)</mat-label>
+        <mat-label>Cuota inicial (S/)</mat-label>
+        <input matInput type="number" [(ngModel)]="inmueble.cuotaInicial"
+               (ngModelChange)="onCuotaInicialChange()">
+      </mat-form-field>
+
+      <mat-form-field>
+        <mat-label>Valor asegurable - Reconstrucción (S/)</mat-label>
         <input matInput type="number" [(ngModel)]="inmueble.valorAsegurable">
+        <mat-hint>Valor de reconstrucción del inmueble</mat-hint>
       </mat-form-field>
 
       <mat-form-field>
@@ -87,206 +120,365 @@
       </mat-form-field>
 
       <mat-form-field>
-        <mat-label>Ubicación / Dirección</mat-label>
-        <input matInput [(ngModel)]="inmueble.ubicacion">
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Tipo de unidad</mat-label>
+        <mat-label>Tipo de vivienda</mat-label>
         <mat-select [(ngModel)]="inmueble.tipo">
           <mat-option value="Departamento">Departamento</mat-option>
           <mat-option value="Casa">Casa</mat-option>
           <mat-option value="Flat">Flat</mat-option>
+          <mat-option value="Dúplex">Dúplex</mat-option>
         </mat-select>
       </mat-form-field>
+
+      <mat-form-field class="full-width">
+        <mat-label>Ubicación / Dirección</mat-label>
+        <input matInput [(ngModel)]="inmueble.ubicacion">
+      </mat-form-field>
+    </div>
+
+    <div class="checkbox-section">
+      <mat-checkbox [(ngModel)]="inmueble.esVerde" (ngModelChange)="calcularBonos()">
+        Es una vivienda sostenible con certificación verde
+        <span class="bono-tag">+S/ 6,300 Bono Verde</span>
+      </mat-checkbox>
+    </div>
+
+    <!-- BONOS APLICABLES -->
+    <div *ngIf="totalBonos > 0" class="bonos-section">
+      <h3>🎁 Bonos Aplicables</h3>
+      <div class="bonos-list">
+        <div *ngFor="let bono of bonosAplicables" class="bono-item">
+          <mat-icon color="primary">check_circle</mat-icon>
+          <span><strong>{{ bono.bono_tipo }}:</strong> S/ {{ bono.bono_monto | number:'1.0-0' }}</span>
+        </div>
+        <div class="bono-item total">
+          <mat-icon color="accent">savings</mat-icon>
+          <span><strong>TOTAL BONOS: S/ {{ totalBonos | number:'1.0-0' }}</strong></span>
+        </div>
+      </div>
+      <p class="bono-info">
+        <mat-icon>info</mat-icon>
+        Los bonos se descuentan directamente del monto a financiar
+      </p>
     </div>
 
     <div class="actions">
       <button mat-button (click)="prevStep()">Anterior</button>
-      <button mat-button (click)="nextStep()">Siguiente</button>
+      <button mat-raised-button color="primary" (click)="nextStep()">Siguiente</button>
     </div>
   </mat-card>
 
-  <!-- STEP 3: CONFIGURACION -->
+  <!-- ==================== STEP 3: CONFIGURACIÓN ==================== -->
   <mat-card *ngIf="currentStep === 2" class="section-card">
     <h2>3. Configuración del Crédito</h2>
 
     <div class="grid-2">
       <mat-form-field>
-        <mat-label>Moneda</mat-label>
-        <mat-select [(ngModel)]="config.moneda">
-          <mat-option value="Soles">Soles (S/)</mat-option>
-          <mat-option value="Dolares">Dólares ($)</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Tipo de tasa</mat-label>
-        <mat-select [(ngModel)]="config.tipoTasa">
-          <mat-option value="Efectiva">Efectiva (TEA)</mat-option>
-          <mat-option value="Nominal">Nominal (TNA)</mat-option>
-        </mat-select>
-      </mat-form-field>
-
-      <mat-form-field *ngIf="config.tipoTasa === 'Nominal'">
-        <mat-label>Capitalización (veces/año)</mat-label>
-        <mat-select [(ngModel)]="config.capitalizacion">
-          <mat-option [value]="12">Mensual (12)</mat-option>
-          <mat-option [value]="6">Bimestral (6)</mat-option>
-          <mat-option [value]="4">Trimestral (4)</mat-option>
-          <mat-option [value]="2">Semestral (2)</mat-option>
-        </mat-select>
+        <mat-label>Plazo del crédito (meses)</mat-label>
+        <input matInput type="number" [(ngModel)]="config.plazoMeses" min="60" max="300">
+        <mat-hint>Rango: 60 - 300 meses (5 - 25 años)</mat-hint>
       </mat-form-field>
 
       <mat-form-field>
         <mat-label>Periodo de gracia</mat-label>
-        <mat-select [(ngModel)]="config.graciaTipo">
-          <mat-option value="Sin gracia">Sin gracia</mat-option>
-          <mat-option value="Parcial">Parcial (pago sólo intereses)</mat-option>
-          <mat-option value="Total">Total (no pagos, intereses capitalizados)</mat-option>
+        <mat-select [(ngModel)]="config.tipoGracia">
+          <mat-option value="Sin gracia">Sin periodo de gracia</mat-option>
+          <mat-option value="Parcial">Gracia parcial (pago solo intereses)</mat-option>
+          <mat-option value="Total">Gracia total (sin pagos, intereses capitalizados)</mat-option>
         </mat-select>
       </mat-form-field>
 
-      <mat-form-field *ngIf="config.graciaTipo !== 'Sin gracia'">
+      <mat-form-field *ngIf="config.tipoGracia !== 'Sin gracia'">
         <mat-label>Meses de gracia</mat-label>
-        <input matInput type="number" [(ngModel)]="config.graciaMeses">
+        <input matInput type="number" [(ngModel)]="config.mesesGracia" min="1" max="6">
+        <mat-hint>Máximo: 6 meses</mat-hint>
       </mat-form-field>
+    </div>
 
-      <mat-form-field>
-        <mat-label>Plazo (meses)</mat-label>
-        <input matInput type="number" [(ngModel)]="calculo.plazo">
-      </mat-form-field>
+    <div class="info-box">
+      <mat-icon>info</mat-icon>
+      <div>
+        <p><strong>Gracia Parcial:</strong> Pagas solo intereses durante el periodo de gracia. El capital no se amortiza.</p>
+        <p><strong>Gracia Total:</strong> No realizas pagos. Los intereses se capitalizan (se suman al saldo).</p>
+      </div>
     </div>
 
     <div class="actions">
       <button mat-button (click)="prevStep()">Anterior</button>
-      <button mat-button (click)="nextStep()">Siguiente</button>
+      <button mat-raised-button color="primary" (click)="nextStep()">Siguiente</button>
     </div>
   </mat-card>
 
-  <!-- STEP 4: BANCO -->
+  <!-- ==================== STEP 4: BANCO Y SEGUROS ==================== -->
   <mat-card *ngIf="currentStep === 3" class="section-card">
-    <h2>4. Selección del Banco y Parámetros</h2>
+    <h2>4. Selección de Banco y Seguros</h2>
 
     <div class="grid-2">
       <mat-form-field>
         <mat-label>Entidad Financiera</mat-label>
         <mat-select [(ngModel)]="bancoSeleccionado" (selectionChange)="aplicarBanco()">
-          <mat-option *ngFor="let b of bancos" [value]="b">{{ b.nombre }}</mat-option>
+          <mat-option *ngFor="let banco of bancos" [value]="banco">
+            {{ banco.nombre }}
+          </mat-option>
         </mat-select>
       </mat-form-field>
 
-      <mat-form-field>
-        <mat-label>TEA / TNA (%)</mat-label>
-        <input matInput type="number" [(ngModel)]="parametros.tasaBruta">
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Seguro Desgravamen (mensual %)</mat-label>
-        <input matInput type="number" [(ngModel)]="parametros.seguroDesgravamen">
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Seguro Inmueble (mensual % sobre valor asegurable)</mat-label>
-        <input matInput type="number" [(ngModel)]="parametros.seguroInmueble">
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Tasación (S/)**</mat-label>
-        <input matInput type="number" [(ngModel)]="parametros.tasacion">
-      </mat-form-field>
-
-      <mat-form-field>
-        <mat-label>Gastos notariales (S/)**</mat-label>
-        <input matInput type="number" [(ngModel)]="parametros.notariales">
+      <mat-form-field *ngIf="tasaAplicable">
+        <mat-label>TEA Aplicable</mat-label>
+        <input matInput [value]="tasaAplicable.tea + '%'" readonly>
+        <mat-hint *ngIf="tasaAplicable.nota">{{ tasaAplicable.nota }}</mat-hint>
       </mat-form-field>
     </div>
 
-    <small>** Puedes editar estos valores para ajustar el tarifario real del banco.</small>
+    <div *ngIf="bancoSeleccionado" class="seguros-section">
+      <h3>Seguros</h3>
+      
+      <mat-form-field class="full-width">
+        <mat-label>Seguro de Desgravamen</mat-label>
+        <mat-select [(ngModel)]="seguroDesgravamenSeleccionado">
+          <mat-option *ngFor="let seg of segurosDesgravamen" [value]="seg">
+            {{ seg.modalidad }} - {{ seg.tasa_mensual * 100 }}% mensual
+            <span *ngIf="seg.descripcion"> ({{ seg.descripcion }})</span>
+          </mat-option>
+        </mat-select>
+        <mat-hint>Obligatorio - Protege contra fallecimiento o invalidez total</mat-hint>
+      </mat-form-field>
 
-    <div class="actions">
-      <button mat-button (click)="prevStep()">Anterior</button>
-      <button mat-button (click)="nextStep()">Siguiente</button>
-    </div>
-  </mat-card>
-
-  <!-- STEP 5: REVISAR Y CALCULAR -->
-  <mat-card *ngIf="currentStep === 4" class="section-card">
-    <h2>5. Revisar y Calcular</h2>
-
-    <p><strong>Resumen:</strong></p>
-    <ul>
-      <li>Cliente: {{ cliente.nombre }} — Ingreso: {{ cliente.ingreso | number:'1.2-2' }}</li>
-      <li>Inmueble: {{ inmueble.precio | number:'1.2-2' }} — Cuota inicial: {{ inmueble.cuotaInicial | number:'1.2-2' }}</li>
-      <li>Moneda: {{ config.moneda }} — Plazo: {{ calculo.plazo }} meses</li>
-      <li>Banco: {{ bancoSeleccionado?.nombre || '---' }} — Tasa (input): {{ parametros.tasaBruta }} %</li>
-    </ul>
-
-    <div class="actions">
-      <button mat-button (click)="prevStep()">Anterior</button>
-      <button mat-raised-button color="primary" (click)="ejecutarCalculoCompleto()">Calcular</button>
-    </div>
-
-    <div *ngIf="mensajeValidacion" class="warning">{{ mensajeValidacion }}</div>
-  </mat-card>
-
-  <!-- STEP 6: RESULTADOS Y PLAN -->
-  <mat-card *ngIf="currentStep === 5" class="section-card">
-    <h2>6. Resultados y Plan de Pagos</h2>
-
-    <div *ngIf="resultado">
-      <p><strong>Cuota mensual:</strong> {{ resultado.cuotaMensual | number:'1.2-2' }}</p>
-      <p><strong>VAN:</strong> {{ resultado.van | number:'1.2-2' }}</p>
-      <p><strong>TIR anual (%):</strong> {{ resultado.tirAnual | number:'1.2-2' }}</p>
-      <p><strong>TCEA (%):</strong> {{ resultado.tcea * 100 | number:'1.2-2' }}</p>
-      <p><strong>Saldo inicial financiado:</strong> {{ resultado.capital | number:'1.2-2' }}</p>
-
-      <div class="table-actions">
-        <button mat-stroked-button (click)="exportPlanCSV()">Exportar Plan CSV</button>
-        <button mat-stroked-button (click)="guardarOperacion()">Guardar operación (historial)</button>
-      </div>
-
-      <h3>Plan de pagos (resumen)</h3>
-      <div class="plan-table">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th><th>Saldo Inicial</th><th>Interés</th><th>Amortización</th><th>Seg. Desgrav.</th><th>Seg. Inmueble</th><th>Cuota Total</th><th>Saldo Final</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let r of plan; let i = index">
-              <td>{{ i + 1 }}</td>
-              <td>{{ r.saldoInicial | number:'1.2-2' }}</td>
-              <td>{{ r.interes | number:'1.2-2' }}</td>
-              <td>{{ r.amortizacion | number:'1.2-2' }}</td>
-              <td>{{ r.segDesgravamen | number:'1.2-4' }}</td>
-              <td>{{ r.segInmueble | number:'1.2-4' }}</td>
-              <td>{{ r.cuota | number:'1.2-2' }}</td>
-              <td>{{ r.saldoFinal | number:'1.2-2' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <mat-form-field class="full-width" *ngIf="segurosInmueble.length > 0">
+        <mat-label>Seguro de Inmueble</mat-label>
+        <mat-select [(ngModel)]="seguroInmuebleSeleccionado">
+          <mat-option [value]="null">No contratar</mat-option>
+          <mat-option *ngFor="let seg of segurosInmueble" [value]="seg">
+            {{ seg.modalidad }} - {{ seg.tasa_mensual * 100 }}% mensual
+            <span *ngIf="seg.descripcion"> ({{ seg.descripcion }})</span>
+          </mat-option>
+        </mat-select>
+        <mat-hint>Opcional - Protege contra daños al inmueble</mat-hint>
+      </mat-form-field>
     </div>
 
-    <div class="actions">
-      <button mat-button (click)="gotoStep(0)">Nueva simulación</button>
-    </div>
-  </mat-card>
-
-  <!-- HISTORIAL -->
-  <mat-card class="section-card">
-    <h3>Historial local</h3>
-    <div *ngIf="historial.length === 0">No hay operaciones guardadas.</div>
-    <div *ngIf="historial.length > 0">
+    <div *ngIf="condicionesCredito" class="condiciones-section">
+      <h3>Condiciones del Banco</h3>
       <ul>
-        <li *ngFor="let h of historial">
-          {{ h.fecha }} — {{ h.cliente.nombre }} — {{ h.inmueble.precio | number:'1.2-2' }}
-          <button mat-button (click)="cargarOperacion(h)">Cargar</button>
-        </li>
+        <li>Cuota inicial: {{ condicionesCredito.cuota_inicial_min }}% - {{ condicionesCredito.cuota_inicial_max }}%</li>
+        <li>Plazo: {{ condicionesCredito.plazo_min }} - {{ condicionesCredito.plazo_max }} meses</li>
+        <li>Financiamiento máximo: {{ condicionesCredito.porcentaje_financiamiento_max }}%</li>
+        <li>Edad máxima al término: {{ condicionesCredito.edad_maxima_termino }} años</li>
       </ul>
-      <button mat-stroked-button color="warn" (click)="limpiarHistorial()">Limpiar historial</button>
+    </div>
+
+    <div class="actions">
+      <button mat-button (click)="prevStep()">Anterior</button>
+      <button mat-raised-button color="primary" (click)="nextStep()">Siguiente</button>
+    </div>
+  </mat-card>
+
+  <!-- ==================== STEP 5: REVISAR Y CALCULAR ==================== -->
+  <mat-card *ngIf="currentStep === 4" class="section-card">
+    <h2>5. Resumen y Cálculo</h2>
+
+    <div class="resumen-section">
+      <h3>Resumen de la Operación</h3>
+      
+      <div class="resumen-grid">
+        <div class="resumen-item">
+          <span class="label">Cliente:</span>
+          <span class="value">{{ cliente.nombre }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Ingreso mensual:</span>
+          <span class="value">S/ {{ cliente.ingreso | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Precio vivienda:</span>
+          <span class="value">S/ {{ inmueble.precio | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Cuota inicial:</span>
+          <span class="value">S/ {{ inmueble.cuotaInicial | number:'1.2-2' }} ({{ inmueble.cuotaInicialPorcentaje | number:'1.1-1' }}%)</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Total bonos:</span>
+          <span class="value success">-S/ {{ totalBonos | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item highlight">
+          <span class="label">Monto a financiar:</span>
+          <span class="value">S/ {{ (inmueble.precio - inmueble.cuotaInicial - totalBonos) | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Banco:</span>
+          <span class="value">{{ bancoSeleccionado?.nombre }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">TEA:</span>
+          <span class="value">{{ tasaAplicable?.tea }}%</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Plazo:</span>
+          <span class="value">{{ config.plazoMeses }} meses ({{ (config.plazoMeses / 12) | number:'1.1-1' }} años)</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Gracia:</span>
+          <span class="value">{{ config.tipoGracia }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button mat-button (click)="prevStep()">Anterior</button>
+      <button mat-raised-button color="accent" (click)="ejecutarCalculoCompleto()">
+        <mat-icon>calculate</mat-icon>
+        Calcular Plan de Pagos
+      </button>
+    </div>
+  </mat-card>
+
+  <!-- ==================== STEP 6: RESULTADOS ==================== -->
+  <mat-card *ngIf="currentStep === 5 && resultado" class="section-card">
+    <h2>6. Resultados del Crédito</h2>
+
+    <!-- INDICADORES PRINCIPALES -->
+    <div class="resultados-principales">
+      <div class="resultado-card">
+        <div class="resultado-label">Cuota Mensual</div>
+        <div class="resultado-valor principal">S/ {{ resultado.cuotaTotalPrimerMes | number:'1.2-2' }}</div>
+        <div class="resultado-detalle">Cuota fija: S/ {{ resultado.cuotaFija | number:'1.2-2' }}</div>
+      </div>
+
+      <div class="resultado-card">
+        <div class="resultado-label">Capital Financiado</div>
+        <div class="resultado-valor">S/ {{ resultado.capitalFinanciado | number:'1.2-2' }}</div>
+        <div class="resultado-detalle">Con bonos aplicados</div>
+      </div>
+
+      <div class="resultado-card">
+        <div class="resultado-label">TCEA</div>
+        <div class="resultado-valor">{{ resultado.tcea | number:'1.2-2' }}%</div>
+        <div class="resultado-detalle">Costo efectivo anual</div>
+      </div>
+
+      <div class="resultado-card">
+        <div class="resultado-label">TIR Anual</div>
+        <div class="resultado-valor">{{ resultado.tirAnual | number:'1.2-2' }}%</div>
+        <div class="resultado-detalle">Tasa interna de retorno</div>
+      </div>
+    </div>
+
+    <!-- RESUMEN FINANCIERO -->
+    <div class="resumen-financiero">
+      <h3>Resumen Financiero</h3>
+      <div class="resumen-grid">
+        <div class="resumen-item">
+          <span class="label">Desembolso inicial:</span>
+          <span class="value">S/ {{ resultado.desembolsoTotal | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Total intereses:</span>
+          <span class="value">S/ {{ resultado.totalIntereses | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Total seguros:</span>
+          <span class="value">S/ {{ resultado.totalSeguros | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item">
+          <span class="label">Total comisiones:</span>
+          <span class="value">S/ {{ resultado.totalComisiones | number:'1.2-2' }}</span>
+        </div>
+        <div class="resumen-item highlight">
+          <span class="label">TOTAL A PAGAR:</span>
+          <span class="value">S/ {{ resultado.totalPagado | number:'1.2-2' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCIONES -->
+    <div class="table-actions">
+      <button mat-stroked-button (click)="exportarPlanCSV()">
+        <mat-icon>download</mat-icon>
+        Exportar Plan CSV
+      </button>
+      <button mat-stroked-button color="primary" (click)="guardarOperacion()">
+        <mat-icon>save</mat-icon>
+        Guardar en Historial
+      </button>
+    </div>
+
+    <!-- PLAN DE PAGOS -->
+    <h3>Plan de Pagos Detallado</h3>
+    <div class="plan-table-wrapper">
+      <table class="plan-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Saldo Inicial</th>
+            <th>Interés</th>
+            <th>Amortización</th>
+            <th>Cuota Fija</th>
+            <th>Seg. Desgrav.</th>
+            <th>Seg. Inmueble</th>
+            <th>Comisión</th>
+            <th>Cuota Total</th>
+            <th>Saldo Final</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let fila of resultado.plan" [class.gracia]="fila.esGracia">
+            <td>{{ fila.mes }}</td>
+            <td>{{ fila.saldoInicial | number:'1.2-2' }}</td>
+            <td>{{ fila.interes | number:'1.2-2' }}</td>
+            <td>{{ fila.amortizacion | number:'1.2-2' }}</td>
+            <td>{{ fila.cuotaFija | number:'1.2-2' }}</td>
+            <td>{{ fila.seguroDesgravamen | number:'1.2-4' }}</td>
+            <td>{{ fila.seguroInmueble | number:'1.2-4' }}</td>
+            <td>{{ fila.comisionMensual | number:'1.2-2' }}</td>
+            <td><strong>{{ fila.cuotaTotal | number:'1.2-2' }}</strong></td>
+            <td>{{ fila.saldoFinal | number:'1.2-2' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button mat-raised-button color="primary" (click)="nuevaSimulacion()">
+        <mat-icon>refresh</mat-icon>
+        Nueva Simulación
+      </button>
+    </div>
+  </mat-card>
+
+  <!-- ==================== HISTORIAL ==================== -->
+  <mat-card class="section-card historial-card">
+    <h3>📋 Historial de Simulaciones</h3>
+    
+    <div *ngIf="historial.length === 0" class="empty-state">
+      <mat-icon>inbox</mat-icon>
+      <p>No hay simulaciones guardadas</p>
+    </div>
+
+    <div *ngIf="historial.length > 0" class="historial-list">
+      <div *ngFor="let op of historial" class="historial-item">
+        <div class="historial-info">
+          <div class="historial-header">
+            <strong>{{ op.cliente.nombre }}</strong>
+            <span class="historial-fecha">{{ op.fecha }}</span>
+          </div>
+          <div class="historial-detalles">
+            <span>Vivienda: S/ {{ op.inmueble.precio | number:'1.0-0' }}</span>
+            <span>•</span>
+            <span>Banco: {{ op.banco }}</span>
+            <span>•</span>
+            <span>Cuota: S/ {{ op.resultado.cuotaMensual | number:'1.2-2' }}</span>
+          </div>
+        </div>
+        <button mat-button color="primary" (click)="cargarOperacion(op)">
+          <mat-icon>restore</mat-icon>
+          Cargar
+        </button>
+      </div>
+
+      <button mat-stroked-button color="warn" (click)="limpiarHistorial()" class="limpiar-btn">
+        <mat-icon>delete</mat-icon>
+        Limpiar Historial
+      </button>
     </div>
   </mat-card>
 
